@@ -104,10 +104,15 @@ public class WebClientTests {
 				"\"error\":\"invalid_token\",\n" +
 				"\"error_description\":\"The access token provided has expired.\"\n" +
 				"}"));
+		this.server.enqueue(jsonResponse(200).setBody("{\"token_type\":\"bearer\",\n" +
+			"\"access_token\":\"new_token\",\n" +
+			"\"expires_in\":20,\n" +
+			"\"refresh_token\":\"fdb8fdbecf1d03ce5e6125c067733c0d51de209c\"\n" +
+			"}"));
 		this.server.enqueue(jsonResponse(200).setBody("{\"message\":\"See if you can refresh the token when it expires.\"}"));
 
 		Message message = this.webClient
-				.filter(refreshAccessTokenIfNeeded("foo", "bar"))
+				.filter(refreshAccessTokenIfNeeded(webClient))
 				.filter(oauth2BearerToken("token"))
 				.get()
 				.uri("/messages/1")
@@ -148,13 +153,15 @@ public class WebClientTests {
 				});
 	}
 
-	private ExchangeFilterFunction refreshAccessTokenIfNeeded(String username, String password) {
+	private ExchangeFilterFunction refreshAccessTokenIfNeeded(WebClient client) {
 		return (request, next) ->
 				next.exchange(request)
 						.filter( r -> !HttpStatus.UNAUTHORIZED.equals(r.statusCode()))
 						.switchIfEmpty( Mono.defer(() -> {
-							String newToken = "new_token";
-							return oauth2BearerToken(newToken).filter(request, next);
+							return refreshToken(client)
+									.flatMap( token ->
+									 	oauth2BearerToken(token.getToken()).filter(request, next)
+									);
 						}));
 	}
 
@@ -165,5 +172,26 @@ public class WebClientTests {
 						.switchIfEmpty( Mono.defer(() -> {
 							return basicAuthentication(username, password).filter(request, next);
 						}));
+	}
+
+	static class OAuth2AccessToken {
+		private String token;
+
+		public String getToken() {
+			return token;
+		}
+
+		public void setToken(String token) {
+			this.token = token;
+		}
+	}
+
+	private Mono<OAuth2AccessToken> refreshToken(WebClient webClient) {
+		return webClient
+				.filter(basicAuthentication("foo", "bar"))
+				.post()
+				.uri("/oauth/token")
+				.exchange()
+				.flatMap( r -> r.body(BodyExtractors.toMono(OAuth2AccessToken.class )));
 	}
 }
