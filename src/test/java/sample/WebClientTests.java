@@ -17,7 +17,7 @@
  */
 package sample;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.After;
@@ -26,7 +26,6 @@ import org.junit.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.util.Assert;
 import org.springframework.web.reactive.function.BodyExtractors;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
@@ -99,21 +98,32 @@ public class WebClientTests {
 	}
 
 	@Test
+	public void refreshWorks() {
+		this.server.enqueue(jsonResponse(200).setBody("{\"token_type\":\"bearer\",\n" +
+				"\"access_token\":\"new_token\",\n" +
+				"\"expires_in\":20,\n" +
+				"\"refresh_token\":\"fdb8fdbecf1d03ce5e6125c067733c0d51de209c\"\n" +
+				"}"));
+		OAuth2AccessToken token = refreshToken(webClient).block();
+		assertThat(token.getAccessToken()).isEqualTo("new_token");
+	}
+
+	@Test
 	public void oauth() throws Exception {
 		this.server.enqueue(jsonResponse(401).setBody("{\"code\":401,\n" +
 				"\"error\":\"invalid_token\",\n" +
-				"\"error_description\":\"The access token provided has expired.\"\n" +
+				"\"error_description\":\"The access accessToken provided has expired.\"\n" +
 				"}"));
 		this.server.enqueue(jsonResponse(200).setBody("{\"token_type\":\"bearer\",\n" +
 			"\"access_token\":\"new_token\",\n" +
 			"\"expires_in\":20,\n" +
 			"\"refresh_token\":\"fdb8fdbecf1d03ce5e6125c067733c0d51de209c\"\n" +
 			"}"));
-		this.server.enqueue(jsonResponse(200).setBody("{\"message\":\"See if you can refresh the token when it expires.\"}"));
+		this.server.enqueue(jsonResponse(200).setBody("{\"message\":\"See if you can refresh the accessToken when it expires.\"}"));
 
 		Message message = this.webClient
 				.filter(refreshAccessTokenIfNeeded(webClient))
-				.filter(oauth2BearerToken("token"))
+				.filter(oauth2BearerToken("accessToken"))
 				.get()
 				.uri("/messages/1")
 				.retrieve()
@@ -123,7 +133,8 @@ public class WebClientTests {
 
 		assertThat(message.getMessage()).isNotNull();
 
-		assertThat(this.server.takeRequest().getHeader("Authorization")).isEqualTo("Bearer token");
+		assertThat(this.server.takeRequest().getHeader("Authorization")).isEqualTo("Bearer accessToken");
+		this.server.takeRequest(); // the refresh
 		assertThat(this.server.takeRequest().getHeader("Authorization")).isEqualTo("Bearer new_token");
 	}
 
@@ -147,7 +158,9 @@ public class WebClientTests {
 		return ExchangeFilterFunction.ofRequestProcessor(
 				clientRequest -> {
 					ClientRequest authorizedRequest = ClientRequest.from(clientRequest)
-							.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+							.headers(headers -> {
+								headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+							})
 							.build();
 					return Mono.just(authorizedRequest);
 				});
@@ -160,7 +173,7 @@ public class WebClientTests {
 						.switchIfEmpty( Mono.defer(() -> {
 							return refreshToken(client)
 									.flatMap( token ->
-									 	oauth2BearerToken(token.getToken()).filter(request, next)
+									 	oauth2BearerToken(token.getAccessToken()).filter(request, next)
 									);
 						}));
 	}
@@ -175,14 +188,21 @@ public class WebClientTests {
 	}
 
 	static class OAuth2AccessToken {
-		private String token;
+		@JsonProperty(required = true)
+		private String accessToken;
 
-		public String getToken() {
-			return token;
+		public OAuth2AccessToken() {}
+
+		public OAuth2AccessToken(String accessToken) {
+			this.accessToken = accessToken;
 		}
 
-		public void setToken(String token) {
-			this.token = token;
+		public String getAccessToken() {
+			return accessToken;
+		}
+
+		public void setAccessToken(String accessToken) {
+			this.accessToken = accessToken;
 		}
 	}
 
@@ -190,8 +210,10 @@ public class WebClientTests {
 		return webClient
 				.filter(basicAuthentication("foo", "bar"))
 				.post()
-				.uri("/oauth/token")
-				.exchange()
-				.flatMap( r -> r.body(BodyExtractors.toMono(OAuth2AccessToken.class )));
+				.uri("/oauth/accessToken")
+				.retrieve()
+				.toEntity(Map.class)
+				.map( e -> (Map<String,String>) e.getBody())
+				.map( m -> new OAuth2AccessToken(m.get("access_token")));
 	}
 }
