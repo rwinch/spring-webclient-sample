@@ -17,6 +17,7 @@
  */
 package sample;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -188,12 +189,10 @@ public class WebClientTests {
 	}
 
 	static class OAuth2AccessToken {
-		@JsonProperty(required = true)
 		private String accessToken;
 
-		public OAuth2AccessToken() {}
-
-		public OAuth2AccessToken(String accessToken) {
+		@JsonCreator
+		public OAuth2AccessToken(@JsonProperty("access_token") String accessToken) {
 			this.accessToken = accessToken;
 		}
 
@@ -212,8 +211,7 @@ public class WebClientTests {
 				.post()
 				.uri("/oauth/accessToken")
 				.retrieve()
-				.toEntity(Map.class)
-				.map( e -> (Map<String,String>) e.getBody())
-				.map( m -> new OAuth2AccessToken(m.get("access_token")));
+				.toEntity(OAuth2AccessToken.class)
+				.map( e -> e.getBody());
 	}
 }
