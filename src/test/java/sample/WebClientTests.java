@@ -68,7 +68,9 @@ public class WebClientTests {
 		this.server.enqueue(new MockResponse().setResponseCode(200).setBody("OK"));
 
 		ClientResponse response = this.webClient
+				.mutate()
 				.filter(basicIfNeeded("rob", "rob"))
+				.build()
 				.get()
 				.uri("/")
 				.exchange()
@@ -86,7 +88,9 @@ public class WebClientTests {
 		this.server.enqueue(new MockResponse().setResponseCode(200).setBody("OK"));
 
 		ClientResponse response = this.webClient
+				.mutate()
 				.filter(basicIfNeeded("rob", "rob"))
+				.build()
 				.get()
 				.uri("/")
 				.exchange()
@@ -123,8 +127,10 @@ public class WebClientTests {
 		this.server.enqueue(jsonResponse(200).setBody("{\"message\":\"See if you can refresh the accessToken when it expires.\"}"));
 
 		Message message = this.webClient
+				.mutate()
 				.filter(refreshAccessTokenIfNeeded(webClient))
 				.filter(oauth2BearerToken("accessToken"))
+				.build()
 				.get()
 				.uri("/messages/1")
 				.retrieve()
@@ -207,7 +213,9 @@ public class WebClientTests {
 
 	private Mono<OAuth2AccessToken> refreshToken(WebClient webClient) {
 		return webClient
+				.mutate()
 				.filter(basicAuthentication("foo", "bar"))
+				.build()
 				.post()
 				.uri("/oauth/accessToken")
 				.retrieve()
