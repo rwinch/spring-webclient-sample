@@ -45,7 +45,9 @@ public class WebClientTests {
 	@Test
 	public void sessionWorks() throws Exception {
 		ExchangeResult result = this.client
+				.mutate()
 				.filter(basicAuthentication("foo","bar"))
+				.build()
 				.get()
 				.uri("/session/set")
 				.exchange()
