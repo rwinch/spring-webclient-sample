@@ -19,6 +19,8 @@ package sample;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.springframework.http.ResponseCookie;
+import org.springframework.test.web.reactive.server.ExchangeResult;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,17 +37,26 @@ public class WebClientTests {
 	@Before
 	public void setup() {
 		this.client = WebTestClient
-				.bindToController(new HelloController())
+				.bindToController(new SessionController())
 				.build();
 	}
 
 	@Test
-	public void ok() throws Exception {
+	public void sessionWorks() throws Exception {
+		ExchangeResult result = this.client
+				.get()
+				.uri("/session/set")
+				.exchange()
+				.returnResult(String.class);
+
+		ResponseCookie session = result.getResponseCookies().getFirst("SESSION");
+
 		this.client
 				.get()
-				.uri("/")
+				.uri("/session/get")
+				.cookie(session.getName(), session.getValue())
 				.exchange()
 				.expectStatus().isOk()
-				.expectBody(String.class).consumeWith( c -> assertThat(c.getResponseBody()).isEqualTo("Hello"));
+				.expectBody(String.class).isEqualTo("Hello");
 	}
 }
