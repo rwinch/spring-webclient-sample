@@ -13,13 +13,8 @@ apply plugin: 'io.spring.convention.spring-sample'
 
 dependencies {
 	compile 'org.springframework:spring-webflux'
-	compile 'org.springframework.security:spring-security-webflux'
-	compile 'org.springframework.security:spring-security-config'
 
 	testCompile 'com.fasterxml.jackson.core:jackson-databind'
-	testCompile 'com.squareup.okhttp3:mockwebserver'
-	testCompile 'io.projectreactor.addons:reactor-test'
-	testCompile 'io.projectreactor.ipc:reactor-netty'
 	testCompile 'io.projectreactor:reactor-test'
 	testCompile 'org.skyscreamer:jsonassert'
 	testCompile 'org.springframework:spring-test'
