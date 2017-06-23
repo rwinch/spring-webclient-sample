@@ -24,6 +24,7 @@ import org.springframework.test.web.reactive.server.ExchangeResult;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.web.reactive.function.client.ExchangeFilterFunctions.basicAuthentication;
 
 /**
  * @author Rob Winch
@@ -44,6 +45,7 @@ public class WebClientTests {
 	@Test
 	public void sessionWorks() throws Exception {
 		ExchangeResult result = this.client
+				.filter(basicAuthentication("foo","bar"))
 				.get()
 				.uri("/session/set")
 				.exchange()

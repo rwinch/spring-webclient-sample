@@ -26,7 +26,7 @@ public class SessionController {
 	@GetMapping("/get")
 	public Mono<String> get(WebSession session) {
 		Optional<String> attribute = session.getAttribute(attrName);
-		String value = attribute.get();
+		String value = attribute.orElse(null);
 		return Mono.justOrEmpty(value);
 	}
 }
